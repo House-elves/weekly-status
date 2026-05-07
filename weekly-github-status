@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from pathlib import Path
 
-import anthropic
-
 CONFIG_PATH = Path.home() / ".config" / "weekly-status" / "config"
 
 
@@ -71,7 +69,6 @@ def fetch_github_activity(since_date, config):
 
 
 def generate_email_with_claude(activity, config, week_start, week_end):
-    client = anthropic.Anthropic(api_key=config["ANTHROPIC_API_KEY"])
     name = config["DISPLAY_NAME"]
 
     prompt = f"""You are writing a weekly status email for {name}, a software engineer, to share with their team.
@@ -119,13 +116,18 @@ Content guidelines:
 GitHub activity data:
 {json.dumps(activity, indent=2)}"""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=16384,
-        messages=[{"role": "user", "content": prompt}],
+    result = subprocess.run(
+        ["claude", "-p", "--model", "sonnet"],
+        input=prompt,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
+    if result.returncode != 0:
+        print(f"Claude failed: {result.stderr[:500]}", file=sys.stderr)
+        sys.exit(1)
 
-    text = response.content[0].text
+    text = result.stdout.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
     if text.endswith("```"):
@@ -152,7 +154,7 @@ def main():
 
     config = load_config()
 
-    required_always = ("GITHUB_USER", "DISPLAY_NAME", "ANTHROPIC_API_KEY")
+    required_always = ("GITHUB_USER", "DISPLAY_NAME")
     required_send = ("GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "SEND_TO")
     required = required_always if preview else required_always + required_send
     for key in required:

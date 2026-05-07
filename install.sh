@@ -16,7 +16,7 @@ echo
 missing=()
 command -v python3 &>/dev/null || missing+=("python3")
 command -v gh &>/dev/null || missing+=("gh (GitHub CLI)")
-command -v pip3 &>/dev/null || missing+=("pip3")
+command -v claude &>/dev/null || missing+=("claude (Claude Code CLI)")
 
 if [[ ${#missing[@]} -gt 0 ]]; then
     echo "Missing prerequisites: ${missing[*]}"
@@ -32,14 +32,6 @@ fi
 echo "Prerequisites OK."
 echo
 
-# --- Install anthropic SDK ---
-
-if ! python3 -c "import anthropic" &>/dev/null; then
-    echo "Installing anthropic Python package..."
-    pip3 install anthropic
-    echo
-fi
-
 # --- Gather config ---
 
 default_gh_user=$(gh api user --jq '.login' 2>/dev/null || echo "")
@@ -51,7 +43,6 @@ github_user="${github_user:-$default_gh_user}"
 read -rp "Gmail address: " gmail_address
 read -srp "Gmail App Password (get one at https://myaccount.google.com/apppasswords): " gmail_app_password
 echo
-read -rp "Anthropic API key (get one at https://console.anthropic.com/settings/keys): " anthropic_api_key
 read -rp "Send email to (comma-separated addresses) [$gmail_address]: " send_to
 send_to="${send_to:-$gmail_address}"
 read -rp "GitHub orgs to exclude (comma-separated, or leave empty): " exclude_orgs
@@ -69,7 +60,6 @@ DISPLAY_NAME=$display_name
 EXCLUDE_ORGS=$exclude_orgs
 GMAIL_ADDRESS=$gmail_address
 GMAIL_APP_PASSWORD=$gmail_app_password
-ANTHROPIC_API_KEY=$anthropic_api_key
 SEND_TO=$send_to
 SCHEDULE=$schedule
 EOF
