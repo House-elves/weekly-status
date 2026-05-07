@@ -55,6 +55,8 @@ read -rp "Anthropic API key (get one at https://console.anthropic.com/settings/k
 read -rp "Send email to (comma-separated addresses) [$gmail_address]: " send_to
 send_to="${send_to:-$gmail_address}"
 read -rp "GitHub orgs to exclude (comma-separated, or leave empty): " exclude_orgs
+read -rp "Schedule (systemd OnCalendar format) [Mon *-*-* 09:00:00]: " schedule
+schedule="${schedule:-Mon *-*-* 09:00:00}"
 
 echo
 
@@ -69,6 +71,7 @@ GMAIL_ADDRESS=$gmail_address
 GMAIL_APP_PASSWORD=$gmail_app_password
 ANTHROPIC_API_KEY=$anthropic_api_key
 SEND_TO=$send_to
+SCHEDULE=$schedule
 EOF
 chmod 600 "$CONFIG_FILE"
 echo "Config written to $CONFIG_FILE"
@@ -103,7 +106,7 @@ cat > "$SYSTEMD_DIR/$SCRIPT_NAME.timer" <<EOF
 Description=Run weekly GitHub status email every Monday at 9 AM
 
 [Timer]
-OnCalendar=Mon *-*-* 09:00:00
+OnCalendar=$schedule
 Persistent=true
 
 [Install]

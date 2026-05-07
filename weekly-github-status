@@ -4,7 +4,6 @@ import smtplib
 import subprocess
 import sys
 from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
@@ -76,37 +75,46 @@ def generate_email_with_claude(activity, config, week_start, week_end):
     name = config["DISPLAY_NAME"]
 
     prompt = f"""You are writing a weekly status email for {name}, a software engineer, to share with their team.
-Based on the GitHub activity data below, create a well-structured HTML email with two main sections:
+Based on the GitHub activity data below, write a plain-text email (no HTML, no styling).
 
-1. **Last Week** ({week_start} to {week_end}) — what was accomplished
-2. **Next Week** — what's coming up, derived from open PRs (work in progress) and open issues (planned work)
+Format it exactly like this structure:
 
-The email title in the header should be "Status Update: {name}".
+Hi,
+
+Status for {week_start} to {week_end}.
+
+[2-3 sentence summary of the week's work and what's coming next]
+
+## What was done during the last iteration
+
+# Project: [repository name]
+
+- [item 1]
+- [item 2]
+
+# Project: [another repository]
+
+- [item 1]
+
+## What is planned for the next iteration
+
+# Project: [repository name]
+
+- [item 1]
+- [item 2]
 
 Content guidelines:
 - Write in first person ("I merged...", "I'll be working on...")
-- Group by project/repository within each section
+- "What was done" and "What is planned" are top-level sections, with projects listed under each
+- Only include a project under a section if it has items for that section — omit it otherwise
 - All PRs in the data are either merged or open (closed PRs are already filtered out)
-- Last Week: merged PRs and closed issues are completed work
-- Next Week: open PRs are in-progress work, open issues are planned/upcoming work
-- Consolidate release/version-bump PRs (e.g. "Release 1.0.3", "Release 1.0.4", version bumps, POM restores) into a single summary line like "Shipped releases 1.0.3 through 1.0.6" — don't list each one individually
-- Keep it compact — use simple list items with linked titles, not elaborate table rows
-- Include links to the PRs and issues
-- Add a brief summary paragraph at the top (2-3 sentences covering both last and next week)
-- If there's no open work for next week, say something like "No open items — starting fresh"
-- Output ONLY the HTML, no markdown fences or explanation
-
-Visual style (use inline CSS, no external stylesheets):
-- Dark navy header (#1e3a5f) with white title "Status Update: {name}" and subtle uppercase date label
-- Summary block with a left blue accent border (#2e7bcf) on a light blue background (#eef4fb)
-- Stat pills row below the summary: rounded badges showing counts (e.g. "30 PRs Merged", "11 Issues Closed") in green, amber, and blue tones
-- Clear visual separation between "Last Week" and "Next Week" sections (e.g. large section headings)
-- Repository sections with bold uppercase headers on a navy background pill (#3a5a8a)
-- PR/issue lists as compact <ul> items with linked titles in blue (#1a5fb4)
-- Section labels (e.g. "Merged", "Issues Closed") as small uppercase colored labels
-- Subtle dividers between repository sections
-- Light grey footer with centered auto-generated note
-- Max width 680px, centered, white card with subtle shadow on #f4f5f7 background
+- Merged PRs and closed issues are completed work (last iteration)
+- Open PRs are in-progress work, open issues are planned/upcoming work (next iteration)
+- Consolidate release/version-bump PRs into a single summary line like "Shipped releases 1.0.3 through 1.0.6"
+- Keep it concise — short bullet points
+- Include PR/issue URLs inline where relevant
+- If there's no open work for next iteration, say "No open items"
+- Output ONLY the plain text, no markdown fences or explanation
 
 GitHub activity data:
 {json.dumps(activity, indent=2)}"""
@@ -117,23 +125,21 @@ GitHub activity data:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    html = response.content[0].text
-    if html.startswith("```"):
-        html = html.split("\n", 1)[1]
-    if html.endswith("```"):
-        html = html.rsplit("```", 1)[0]
-    return html.strip()
+    text = response.content[0].text
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1]
+    if text.endswith("```"):
+        text = text.rsplit("```", 1)[0]
+    return text.strip()
 
 
-def send_email(html_body, config, week_start, week_end):
+def send_email(body, config, week_start, week_end):
     name = config["DISPLAY_NAME"]
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Status Update: {name} — {week_start} - {week_end}"
+    msg = MIMEText(body, "plain")
+    msg["Subject"] = f"Status {name} - {week_start} to {week_end}"
     msg["From"] = config["GMAIL_ADDRESS"]
     recipients = [r.strip() for r in config["SEND_TO"].split(",")]
     msg["To"] = ", ".join(recipients)
-
-    msg.attach(MIMEText(html_body, "html"))
 
     with smtplib.SMTP("smtp.gmail.com", 587) as server:
         server.starttls()
@@ -168,16 +174,16 @@ def main():
     print(f"Found {pr_count} PRs and {issue_count} issues")
 
     print("Generating email with Claude...")
-    html_body = generate_email_with_claude(activity, config, week_start, week_end)
+    body = generate_email_with_claude(activity, config, week_start, week_end)
 
     if preview:
-        preview_path = Path("/tmp/weekly-status-preview.html")
-        preview_path.write_text(html_body)
+        preview_path = Path("/tmp/weekly-status-preview.txt")
+        preview_path.write_text(body)
         print(f"Preview saved to {preview_path}")
         subprocess.run(["xdg-open", str(preview_path)])
     else:
         print(f"Sending email to {config['SEND_TO']}...")
-        send_email(html_body, config, week_start, week_end)
+        send_email(body, config, week_start, week_end)
 
     print("Done!")
 
