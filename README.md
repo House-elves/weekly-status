@@ -20,7 +20,7 @@ Fetches your GitHub activity (PRs and issues), uses Claude to write a polished s
 ### Quick install (via JBang)
 
 ```bash
-jbang app install weekly-status@House-elves/weekly-github-status
+jbang app install weekly-status@House-elves/weekly-status
 ```
 
 Then run `install.sh` for interactive setup (config, schedule).
@@ -28,7 +28,7 @@ Then run `install.sh` for interactive setup (config, schedule).
 ### Manual install (from source)
 
 ```bash
-git clone https://github.com/House-elves/weekly-github-status.git
+git clone https://github.com/House-elves/weekly-status.git
 cd weekly-github-status
 ./install.sh
 ```
