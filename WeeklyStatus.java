@@ -33,8 +33,8 @@ public class WeeklyStatus implements Callable<Integer> {
 
     private static final DateTimeFormatter DISPLAY_FORMAT = DateTimeFormatter.ofPattern("MMMM dd");
     private static final DateTimeFormatter DISPLAY_FORMAT_YEAR = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
-    private static final int RETRY_DELAY_MINUTES = 60;
-    private static final int MAX_RETRIES = 2;
+    private static final int RETRY_INTERVAL_SECONDS = 120;
+    private static final int MAX_WAIT_MINUTES = 30;
 
     @Override
     public Integer call() {
@@ -86,17 +86,20 @@ public class WeeklyStatus implements Callable<Integer> {
     }
 
     private boolean waitForNetwork() {
-        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-            if (isNetworkAvailable()) return true;
-            if (attempt < MAX_RETRIES) {
-                System.out.println("Network not available. Retry " + (attempt + 1) + "/" + MAX_RETRIES
-                        + " in " + RETRY_DELAY_MINUTES + " minutes...");
-                try {
-                    TimeUnit.MINUTES.sleep(RETRY_DELAY_MINUTES);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
+        if (isNetworkAvailable()) return true;
+        int maxAttempts = (MAX_WAIT_MINUTES * 60) / RETRY_INTERVAL_SECONDS;
+        System.out.println("Network not available. Checking every " + RETRY_INTERVAL_SECONDS
+                + "s for up to " + MAX_WAIT_MINUTES + " minutes...");
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                TimeUnit.SECONDS.sleep(RETRY_INTERVAL_SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            if (isNetworkAvailable()) {
+                System.out.println("Network available after " + (attempt * RETRY_INTERVAL_SECONDS) + "s.");
+                return true;
             }
         }
         return false;
