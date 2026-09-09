@@ -4,6 +4,7 @@
 //DEPS org.eclipse.angus:angus-mail:2.0.3
 //SOURCES Config.java
 //SOURCES GitHubActivity.java
+//SOURCES ProdSupportActivity.java
 //SOURCES EmailGenerator.java
 //SOURCES Notifier.java
 
@@ -55,9 +56,13 @@ public class WeeklyStatus implements Callable<Integer> {
         GitHubActivity gh = new GitHubActivity(config);
         GitHubActivity.Activity activity = gh.fetch();
 
+        var prodSupport = ProdSupportActivity.since(weekAgo);
+        System.out.println("prod-support actions this week: " + prodSupport.size());
+
         System.out.println("Generating email with Claude...");
         EmailGenerator generator = new EmailGenerator();
-        String body = generator.generate(activity.toJson(), config.displayName, weekStart, weekEnd);
+        String body = generator.generate(activity.toJson(), String.join("\n", prodSupport),
+                config.displayName, weekStart, weekEnd);
 
         if (body == null) {
             System.err.println("Failed to generate email");
