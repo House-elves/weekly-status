@@ -4,7 +4,8 @@ import java.util.concurrent.TimeUnit;
 
 public class EmailGenerator {
 
-    String generate(String activityJson, String displayName, String weekStart, String weekEnd) {
+    String generate(String activityJson, String prodSupportLog, String displayName, String weekStart,
+            String weekEnd) {
         String prompt = """
                 You are writing a weekly status email for %s, a software engineer, to share with their team.
                 Based on the GitHub activity data below, write a plain-text email (no HTML, no styling).
@@ -35,6 +36,10 @@ public class EmailGenerator {
                 - [item 1]
                 - [item 2]
 
+                ## Production support
+
+                - [item]
+
                 Content guidelines:
                 - Write in first person ("I merged...", "I'll be working on...")
                 - "What was done" and "What is planned" are top-level sections, with projects listed under each
@@ -47,10 +52,18 @@ public class EmailGenerator {
                 - Include PR/issue URLs inline where relevant
                 - If there's no open work for next iteration, say "No open items"
                 - Output ONLY the plain text, no markdown fences or explanation
+                - "Production support" summarises the prod-support elf's action log below (Bin Space):
+                  cases filed / closed / escalated, grouped as disputes, reports, alerts and council
+                  sources, with counts and the notable ones (an escalation, an alert that stayed open).
+                  Write it in third person ("The prod-support elf filed..."). Omit the whole section
+                  if the log is empty.
 
                 GitHub activity data:
                 %s
-                """.formatted(displayName, weekStart, weekEnd, activityJson);
+
+                prod-support elf action log (this iteration; empty if none):
+                %s
+                """.formatted(displayName, weekStart, weekEnd, activityJson, prodSupportLog);
 
         try {
             ProcessBuilder pb = new ProcessBuilder("claude", "-p", "--model", "sonnet");
