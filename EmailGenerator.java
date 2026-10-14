@@ -93,6 +93,10 @@ public class EmailGenerator {
             if (stdout.startsWith("```")) stdout = stdout.substring(stdout.indexOf('\n') + 1);
             if (stdout.endsWith("```")) stdout = stdout.substring(0, stdout.lastIndexOf("```"));
 
+            // The email starts at "Hi,": anything before it (a greeting a global CLAUDE.md asks for) isn't the email.
+            int hi = stdout.indexOf("Hi,");
+            if (hi > 0) stdout = stdout.substring(hi);
+
             return stdout.strip();
         } catch (IOException | InterruptedException e) {
             System.err.println("Claude error: " + e.getMessage());
