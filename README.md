@@ -52,7 +52,16 @@ weekly-status --preview
 
 # Send the email
 weekly-status
+
+# Save a draft for Elf Desk (the timer runs this), with a desktop notification
+weekly-status --save --notify
+
+# Send a saved draft (Elf Desk's Send button); the body comes from stdin, or the saved one if stdin is empty
+weekly-status --send=2026-10-19_08-00-00 < body.txt
 ```
+
+Drafts live in `~/.config/weekly-status/runs/<id>.json` (id, week, subject, to, body, and once sent: `sentAt`,
+`sentTo`, `sentBody`). Elf Desk's Status tab shows the newest, lets you edit it, and sends it when you click Send.
 
 ## Configuration
 

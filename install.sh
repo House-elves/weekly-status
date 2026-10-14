@@ -109,11 +109,11 @@ install_systemd() {
 
     cat > "$systemd_dir/$SCRIPT_NAME.service" <<EOF
 [Unit]
-Description=Weekly GitHub status email
+Description=Weekly GitHub status draft for Elf Desk
 
 [Service]
 Type=oneshot
-ExecStart=$BIN_DIR/$SCRIPT_NAME
+ExecStart=$BIN_DIR/$SCRIPT_NAME --save --notify
 Environment=HOME=$HOME
 Environment=PATH=$JBANG_BIN:$JAVA_BIN:$BIN_DIR:/usr/bin:/bin
 

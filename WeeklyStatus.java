@@ -32,6 +32,21 @@ public class WeeklyStatus implements Callable<Integer> {
     @Option(names = "--preview", description = "Generate and display the email without sending")
     boolean preview;
 
+    @Option(names = "--save", description = "Generate the email and save it as a draft under ~/.config/weekly-status/runs "
+            + "(for Elf Desk, which shows it and sends it when you click Send). Sends nothing.")
+    boolean save;
+
+    @Option(names = "--notify", description = "With --save: a desktop notification that the draft is ready")
+    boolean notify;
+
+    @Option(names = "--send", paramLabel = "ID", description = "Send the saved draft ID; the body is read from stdin "
+            + "(your edits), or the saved one if stdin is empty. Records when it was sent.")
+    String sendId;
+
+    static final Path RUNS = Config.CONFIG_DIR.resolve("runs");
+    static final java.util.regex.Pattern RUN_ID = java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}");
+    static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
+
     private static final DateTimeFormatter DISPLAY_FORMAT = DateTimeFormatter.ofPattern("MMMM dd");
     private static final DateTimeFormatter DISPLAY_FORMAT_YEAR = DateTimeFormatter.ofPattern("MMMM dd, yyyy");
     private static final int RETRY_INTERVAL_SECONDS = 120;
@@ -39,13 +54,14 @@ public class WeeklyStatus implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        if (sendId != null) return sendSaved();
         if (!waitForNetwork()) {
             System.err.println("No network connectivity after retrying. Aborting.");
             return 1;
         }
 
         Config config = Config.load();
-        config.validate(!preview);
+        config.validate(!preview && !save);
 
         LocalDate today = LocalDate.now();
         LocalDate weekAgo = today.minusDays(config.lookbackDays);
@@ -69,7 +85,22 @@ public class WeeklyStatus implements Callable<Integer> {
             return 1;
         }
 
-        if (preview) {
+        if (save) {
+            String id = java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+            var draft = JSON.createObjectNode().put("id", id).put("generatedAt", java.time.Instant.now().toString())
+                    .put("weekStart", weekStart).put("weekEnd", weekEnd)
+                    .put("subject", new Notifier(config).subject(weekStart, weekEnd)).put("to", config.sendTo)
+                    .put("body", body);
+            try {
+                Files.createDirectories(RUNS);
+                Files.writeString(RUNS.resolve(id + ".json"), JSON.writerWithDefaultPrettyPrinter().writeValueAsString(draft));
+            } catch (IOException e) {
+                System.err.println("Couldn't save the draft: " + e.getMessage());
+                return 1;
+            }
+            System.out.println("Saved draft " + id);
+            if (notify) notifyReady(weekStart, weekEnd);
+        } else if (preview) {
             System.out.println("\n" + "=".repeat(60));
             System.out.println(body);
             System.out.println("=".repeat(60));
@@ -88,6 +119,49 @@ public class WeeklyStatus implements Callable<Integer> {
 
         System.out.println("Done!");
         return 0;
+    }
+
+    /** A desktop notification: best effort, a missing notify-send or no session just skips it. */
+    private static void notifyReady(String weekStart, String weekEnd) {
+        try {
+            new ProcessBuilder("notify-send", "--app-name=Elf Desk", "--icon=mail-message-new",
+                    "Weekly status ready to send", "Status for " + weekStart + " to " + weekEnd
+                            + ". Read it and send it from Elf Desk's Status tab.")
+                    .inheritIO().start().waitFor(10, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            System.err.println("No desktop notification: " + e.getMessage());
+        }
+    }
+
+    /** --send: the saved draft, with the body from stdin if given, sent and marked sent. */
+    private int sendSaved() {
+        if (!RUN_ID.matcher(sendId).matches()) {
+            System.err.println("Not a draft id: " + sendId);
+            return 2;
+        }
+        Path file = RUNS.resolve(sendId + ".json");
+        try {
+            var draft = (com.fasterxml.jackson.databind.node.ObjectNode) JSON.readTree(file.toFile());
+            if (draft.hasNonNull("sentAt")) {
+                System.err.println("It was already sent at " + draft.path("sentAt").asText());
+                return 1;
+            }
+            String edited = new String(System.in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
+            String body = edited.isEmpty() ? draft.path("body").asText() : edited;
+            Config config = Config.load();
+            config.validate(true);
+            new Notifier(config).send(draft.path("subject").asText(), body);
+            draft.put("sentAt", java.time.Instant.now().toString()).put("sentTo", config.sendTo).put("sentBody", body);
+            Files.writeString(file, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(draft));
+            System.out.println("{\"sentTo\": " + JSON.writeValueAsString(config.sendTo) + "}");
+            return 0;
+        } catch (java.nio.file.NoSuchFileException e) {
+            System.err.println("No such draft: " + sendId);
+            return 1;
+        } catch (Exception e) {
+            System.err.println("Not sent: " + e.getMessage());
+            return 1;
+        }
     }
 
     private boolean waitForNetwork() {
