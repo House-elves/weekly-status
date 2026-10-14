@@ -88,7 +88,7 @@ public class WeeklyStatus implements Callable<Integer> {
             var draft = JSON.createObjectNode().put("id", id).put("generatedAt", java.time.Instant.now().toString())
                     .put("weekStart", weekStart).put("weekEnd", weekEnd)
                     .put("subject", new Notifier(config).subject(weekStart, weekEnd)).put("to", config.sendTo)
-                    .put("teamTo", config.teamTo)
+                    .put("teamTo", config.teamTo).put("from", config.gmailAddress)
                     .put("body", body);
             try {
                 Files.createDirectories(RUNS);
