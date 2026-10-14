@@ -75,15 +75,29 @@ public class GitHubActivity {
             cmd.add("--json");
             cmd.add("repository,title,state,url,updatedAt,createdAt,closedAt");
 
-            ProcessBuilder pb = new ProcessBuilder(cmd);
+            ProcessBuilder pb = new ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.INHERIT);
             Process p = pb.start();
-            boolean finished = p.waitFor(30, TimeUnit.SECONDS);
+            p.getOutputStream().close();
+            // Read while it runs: gh doesn't exit until its output is read, so waiting first never finished and the
+            // PR search came back empty.
+            var out = java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                try {
+                    return new String(p.getInputStream().readAllBytes());
+                } catch (java.io.IOException e) {
+                    return "";
+                }
+            });
+            boolean finished = p.waitFor(60, TimeUnit.SECONDS);
             if (!finished) {
                 p.destroyForcibly();
+                System.err.println("gh search " + type + " took too long");
                 return List.of();
             }
-            String stdout = new String(p.getInputStream().readAllBytes()).trim();
-            if (p.exitValue() != 0) return List.of();
+            String stdout = out.get(10, TimeUnit.SECONDS).trim();
+            if (p.exitValue() != 0) {
+                System.err.println("gh search " + type + " failed (exit " + p.exitValue() + ")");
+                return List.of();
+            }
 
             JsonNode arr = mapper.readTree(stdout);
             if (!arr.isArray()) return List.of();
