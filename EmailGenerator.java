@@ -4,8 +4,7 @@ import java.util.concurrent.TimeUnit;
 
 public class EmailGenerator {
 
-    String generate(String activityJson, String prodSupportLog, String displayName, String weekStart,
-            String weekEnd) {
+    String generate(String activityJson, String displayName, String weekStart, String weekEnd) {
         String prompt = """
                 You are writing a weekly status email for %s, a software engineer, to share with their team.
                 Based on the GitHub activity data below, write a plain-text email (no HTML, no styling).
@@ -16,9 +15,9 @@ public class EmailGenerator {
 
                 Status for %s to %s.
 
-                [2-3 sentence summary of the week's work and what's coming next]
+                [1-2 sentence summary of what was done this week]
 
-                ## What was done during the last iteration
+                ## What I have done
 
                 # Project: [repository name]
 
@@ -29,41 +28,20 @@ public class EmailGenerator {
 
                 - [item 1]
 
-                ## What is planned for the next iteration
-
-                # Project: [repository name]
-
-                - [item 1]
-                - [item 2]
-
-                ## Production support
-
-                - [item]
-
                 Content guidelines:
-                - Write in first person ("I merged...", "I'll be working on...")
-                - "What was done" and "What is planned" are top-level sections, with projects listed under each
-                - Only include a project under a section if it has items for that section — omit it otherwise
-                - All PRs in the data are either merged or open (closed PRs are already filtered out)
-                - Merged PRs and closed issues are completed work (last iteration)
-                - Open PRs are in-progress work, open issues are planned/upcoming work (next iteration)
+                - Write in first person ("I merged...", "I fixed...")
+                - Only report work that was done: the data holds merged PRs and closed issues only
+                - Do not add a section about upcoming or planned work, and don't mention what's next
+                - List each project that has items, and only those
                 - Consolidate release/version-bump PRs into a single summary line like "Shipped releases 1.0.3 through 1.0.6"
                 - Keep it concise — short bullet points
                 - Include PR/issue URLs inline where relevant
-                - If there's no open work for next iteration, say "No open items"
+                - If there is nothing in the data, write "No completed items this week" under the section
                 - Output ONLY the plain text, no markdown fences or explanation
-                - "Production support" summarises the prod-support elf's action log below (Bin Space):
-                  cases filed / closed / escalated, grouped as disputes, reports, alerts and council
-                  sources, with counts and the notable ones (an escalation, an alert that stayed open).
-                  Write it in third person ("The prod-support elf filed..."). Omit the whole section
-                  if the log is empty.
 
                 GitHub activity data:
                 %s
-
-                prod-support elf action log (this iteration; empty if none):
-                %s
-                """.formatted(displayName, weekStart, weekEnd, activityJson, prodSupportLog);
+                """.formatted(displayName, weekStart, weekEnd, activityJson);
 
         try {
             ProcessBuilder pb = new ProcessBuilder("claude", "-p", "--model", "sonnet");

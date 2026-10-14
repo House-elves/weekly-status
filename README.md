@@ -2,10 +2,9 @@
 
 A House Elf that generates and sends weekly GitHub status emails using [Claude Code](https://claude.com/claude-code).
 
-Fetches your GitHub activity (PRs and issues), uses Claude to write a polished status update, and sends it via Gmail. The email has two sections:
+Fetches your GitHub activity (PRs and issues), uses Claude to write a polished status update, and sends it via Gmail. The email has one section:
 
-- **Last iteration** — merged PRs and closed issues, grouped by repository
-- **Next iteration** — open PRs (in progress) and open issues (upcoming work)
+- **What I have done** — PRs merged and issues closed in the period, grouped by repository
 
 ## Prerequisites
 
@@ -81,7 +80,7 @@ Stored in `~/.config/weekly-status/config`:
 ## How it works
 
 1. Fetches PRs and issues authored by you from the last `LOOKBACK_DAYS` via `gh search`
-2. Filters out excluded orgs and closed (unmerged) PRs
+2. Keeps only PRs merged and issues closed in the period, outside excluded orgs
 3. Sends the activity data to Claude Code CLI to generate a plain-text status email
 4. Sends the email via Gmail SMTP
 

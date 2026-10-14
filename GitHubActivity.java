@@ -37,20 +37,30 @@ public class GitHubActivity {
         System.out.println("Fetching issues...");
         List<JsonNode> issues = search("issues", "--author", config.githubUser, "--updated", ">=" + since);
 
-        // Filter out excluded orgs and closed (unmerged) PRs
+        // Only what was done in the period: PRs merged and issues closed since then, outside the excluded orgs.
+        // Open work and closed-unmerged PRs are left out; the status reports done work only.
         prs = prs.stream()
                 .filter(p -> !config.excludeOrgs.contains(
                         p.path("repository").path("nameWithOwner").asText("").split("/")[0]))
-                .filter(p -> !"closed".equalsIgnoreCase(p.path("state").asText("")))
+                .filter(p -> "merged".equalsIgnoreCase(p.path("state").asText("")))
+                .filter(p -> closedSince(p, since))
                 .toList();
 
         issues = issues.stream()
                 .filter(i -> !config.excludeOrgs.contains(
                         i.path("repository").path("nameWithOwner").asText("").split("/")[0]))
+                .filter(i -> "closed".equalsIgnoreCase(i.path("state").asText("")))
+                .filter(i -> closedSince(i, since))
                 .toList();
 
         System.out.println("Found " + prs.size() + " PRs and " + issues.size() + " issues");
         return new Activity(prs, issues);
+    }
+
+    /** Closed (or merged) on or after {@code since} (yyyy-MM-dd), not just touched since. */
+    private static boolean closedSince(JsonNode n, String since) {
+        String closed = n.path("closedAt").asText("");
+        return closed.length() >= 10 && closed.substring(0, 10).compareTo(since) >= 0;
     }
 
     private List<JsonNode> search(String type, String... extraArgs) {
