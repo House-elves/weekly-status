@@ -42,6 +42,9 @@ public class WeeklyStatus implements Callable<Integer> {
             + "(your edits), or the saved one if stdin is empty. Records when it was sent.")
     String sendId;
 
+    @Option(names = "--to", defaultValue = "me", description = "With --send: me (SEND_TO) or team (TEAM_TO). Each once per draft.")
+    String sendTarget;
+
     static final Path RUNS = Config.CONFIG_DIR.resolve("runs");
     static final java.util.regex.Pattern RUN_ID = java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}");
     static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -85,6 +88,7 @@ public class WeeklyStatus implements Callable<Integer> {
             var draft = JSON.createObjectNode().put("id", id).put("generatedAt", java.time.Instant.now().toString())
                     .put("weekStart", weekStart).put("weekEnd", weekEnd)
                     .put("subject", new Notifier(config).subject(weekStart, weekEnd)).put("to", config.sendTo)
+                    .put("teamTo", config.teamTo)
                     .put("body", body);
             try {
                 Files.createDirectories(RUNS);
@@ -136,19 +140,38 @@ public class WeeklyStatus implements Callable<Integer> {
         }
         Path file = RUNS.resolve(sendId + ".json");
         try {
+            if (!sendTarget.equals("me") && !sendTarget.equals("team")) {
+                System.err.println("--to is me or team");
+                return 2;
+            }
             var draft = (com.fasterxml.jackson.databind.node.ObjectNode) JSON.readTree(file.toFile());
-            if (draft.hasNonNull("sentAt")) {
+            var sends = draft.withArray("sends");
+            for (var s : sends) {
+                if (s.path("target").asText().equals(sendTarget)) {
+                    System.err.println("It was already sent to " + s.path("to").asText() + " at " + s.path("at").asText());
+                    return 1;
+                }
+            }
+            // Drafts sent before "sends" existed: that one went to SEND_TO.
+            if (sends.isEmpty() && draft.hasNonNull("sentAt") && sendTarget.equals("me")) {
                 System.err.println("It was already sent at " + draft.path("sentAt").asText());
+                return 1;
+            }
+            Config config = Config.load();
+            config.validate(true);
+            String to = sendTarget.equals("team") ? config.teamTo : config.sendTo;
+            if (to.isBlank()) {
+                System.err.println("TEAM_TO isn't set in " + Config.CONFIG_PATH);
                 return 1;
             }
             String edited = new String(System.in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
             String body = edited.isEmpty() ? draft.path("body").asText() : edited;
-            Config config = Config.load();
-            config.validate(true);
-            new Notifier(config).send(draft.path("subject").asText(), body);
-            draft.put("sentAt", java.time.Instant.now().toString()).put("sentTo", config.sendTo).put("sentBody", body);
+            new Notifier(config).sendTo(to, draft.path("subject").asText(), body);
+            String at = java.time.Instant.now().toString();
+            sends.addObject().put("target", sendTarget).put("to", to).put("at", at).put("body", body);
+            draft.put("sentAt", at).put("sentTo", to).put("sentBody", body); // the latest send
             Files.writeString(file, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(draft));
-            System.out.println("{\"sentTo\": " + JSON.writeValueAsString(config.sendTo) + "}");
+            System.out.println("{\"sentTo\": " + JSON.writeValueAsString(to) + "}");
             return 0;
         } catch (java.nio.file.NoSuchFileException e) {
             System.err.println("No such draft: " + sendId);

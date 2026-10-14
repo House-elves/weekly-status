@@ -17,6 +17,8 @@ public class Config {
     String gmailAddress;
     String gmailAppPassword;
     String sendTo;
+    /** "Send to team" on the desk: the team's list (TEAM_TO), empty when not configured. */
+    String teamTo;
     int lookbackDays;
 
     static Config load() {
@@ -48,6 +50,7 @@ public class Config {
         c.gmailAddress = raw.getOrDefault("GMAIL_ADDRESS", "");
         c.gmailAppPassword = raw.getOrDefault("GMAIL_APP_PASSWORD", "");
         c.sendTo = raw.getOrDefault("SEND_TO", "");
+        c.teamTo = raw.getOrDefault("TEAM_TO", "");
         c.lookbackDays = Integer.parseInt(raw.getOrDefault("LOOKBACK_DAYS", "7"));
         return c;
     }

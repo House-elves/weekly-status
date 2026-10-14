@@ -74,6 +74,7 @@ Stored in `~/.config/weekly-status/config`:
 | `GMAIL_ADDRESS` | Gmail sender address | — |
 | `GMAIL_APP_PASSWORD` | Gmail App Password | — |
 | `SEND_TO` | Email recipients (comma-separated) | — |
+| `TEAM_TO` | The team list for Elf Desk's "Send to team" (`--send=ID --to=team`) | — |
 | `LOOKBACK_DAYS` | Days of activity to include | `7` |
 | `SCHEDULE` | systemd OnCalendar expression | `Fri *-*-* 16:00:00` |
 

@@ -17,14 +17,14 @@ public class Notifier {
 
     void send(String body, String weekStart, String weekEnd) {
         try {
-            send(subject(weekStart, weekEnd), body);
+            sendTo(config.sendTo, subject(weekStart, weekEnd), body);
         } catch (Exception e) {
             System.err.println("Failed to send email: " + e.getMessage());
         }
     }
 
     /** Sends it, or throws: the desk's Send must know when it didn't go out. */
-    void send(String subject, String body) throws MessagingException {
+    void sendTo(String recipients, String subject, String body) throws MessagingException {
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
@@ -41,7 +41,7 @@ public class Notifier {
         MimeMessage msg = new MimeMessage(session);
         msg.setFrom(new InternetAddress(config.gmailAddress));
 
-        for (String to : config.sendTo.split(",")) {
+        for (String to : recipients.split(",")) {
             msg.addRecipient(Message.RecipientType.TO, new InternetAddress(to.trim()));
         }
 
@@ -49,6 +49,6 @@ public class Notifier {
         msg.setText(body, "utf-8");
 
         Transport.send(msg);
-        System.out.println("Email sent to " + config.sendTo);
+        System.out.println("Email sent to " + recipients);
     }
 }
