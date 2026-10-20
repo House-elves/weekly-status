@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/House-elves/elf-desk/main/docs/brand/mark.svg" width="72" alt="House Elves logo: a checkmark that ends in an elf's hat">
+
 # weekly-status
 
 A House Elf that generates and sends weekly GitHub status emails using [Claude Code](https://claude.com/claude-code).
