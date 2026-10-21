@@ -18,6 +18,8 @@ Fetches your GitHub activity (PRs and issues), uses Claude to write a polished s
 
 ## Install
 
+The easy way: install it from [Elf Desk](https://github.com/House-elves/elf-desk)'s **Elves** page. The desk reads [`elf.yaml`](elf.yaml), asks for the settings, runs the Monday draft on schedule and gives you a dry run. The steps below set it up by hand, without the desk.
+
 ### Quick install (via JBang)
 
 ```bash

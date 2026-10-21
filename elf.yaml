@@ -1,0 +1,70 @@
+# A House Elves elf: what Elf Desk needs to install, set up, schedule and run weekly-status.
+name: weekly-status
+description: Drafts your weekly status from your GitHub work, for you to edit and send from the desk's Status tab.
+main: WeeklyStatus.java
+config: ~/.config/weekly-status/config
+tools: [gh, claude]
+
+reads:
+  - Your GitHub activity (PRs, reviews, issues), through gh.
+writes:
+  - An email with your status, only when you click Send on the Status tab.
+
+settings:
+  - key: DISPLAY_NAME
+    label: Your name
+    help: In the subject line.
+    kind: text
+  - key: GITHUB_USER
+    label: GitHub account
+    help: Whose work goes in the status.
+    kind: login
+    default: ${github-user}
+  - key: EXCLUDE_ORGS
+    label: Leave out these orgs
+    help: Comma-separated GitHub orgs whose work isn't part of the status.
+    kind: words
+    default: ""
+  - key: LOOKBACK_DAYS
+    label: Days covered
+    help: How far back each status looks.
+    kind: int
+    min: 1
+    max: 31
+    default: "7"
+  - key: SEND_TO
+    label: Send to me
+    help: Where Send to me goes (comma-separated).
+    kind: emails
+  - key: TEAM_TO
+    label: Send to the team
+    help: Where Send to team goes (comma-separated).
+    kind: emails
+  - key: GMAIL_ADDRESS
+    label: Send from
+    help: The Gmail account it sends with.
+    kind: email
+  - key: GMAIL_APP_PASSWORD
+    label: Gmail app password
+    help: From myaccount.google.com/apppasswords.
+    kind: secret
+    goes-with: [GMAIL_ADDRESS]
+  - key: SCHEDULE
+    label: Draft it on
+    help: "When the draft is written: weekdays, *-*-* and a time, like Mon *-*-* 08:00:00."
+    kind: calendar
+    default: Mon *-*-* 08:00:00
+
+commands:
+  draft:
+    label: Draft this week's status
+    args: [--save, --notify]
+  dry-run:
+    label: Draft it now (sends nothing)
+    args: [--save]
+
+schedule:
+  command: draft
+  setting: SCHEDULE
+
+dry-run: dry-run
