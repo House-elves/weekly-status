@@ -1,5 +1,6 @@
 # A House Elves elf: what Elf Desk needs to install, set up, schedule and run weekly-status.
 name: weekly-status
+title: Weekly status
 description: Drafts your weekly status from your GitHub work, for you to edit and send from the desk's Status tab.
 main: WeeklyStatus.java
 config: ~/.config/weekly-status/config
@@ -8,7 +9,8 @@ tools: [gh, claude]
 reads:
   - Your GitHub activity (PRs, reviews, issues), through gh.
 writes:
-  - An email with your status, only when you click Send on the Status tab.
+  - An email with your status to you, only when you click Send to me and confirm.
+  - Nothing to your team: Write it to the team opens a Gmail draft in your work account, which you send yourself.
 
 settings:
   - key: DISPLAY_NAME
@@ -32,61 +34,62 @@ settings:
     min: 1
     max: 31
     default: "7"
+  - key: TEAM_TO
+    label: The team
+    help: Who the status goes to (comma-separated). Write it to the team opens a Gmail draft to them.
+    kind: emails
+    optional: true
+  - key: TEAM_FROM
+    label: Your work account
+    help: The Gmail account the team's draft opens in, like you@redhat.com. Empty for the account Gmail opens by default.
+    kind: email
+    optional: true
   - key: SEND_TO
     label: Send to me
-    help: Where Send to me goes (comma-separated).
+    help: Where Send to me goes (comma-separated). Empty for no Send to me.
     kind: emails
-  - key: TEAM_TO
-    label: Send to the team
-    help: Where Send to team goes (comma-separated).
-    kind: emails
+    optional: true
   - key: GMAIL_ADDRESS
-    label: Send from
-    help: The Gmail account it sends with.
+    label: Send to me from
+    help: The Gmail account Send to me sends with.
     kind: email
+    optional: true
   - key: GMAIL_APP_PASSWORD
     label: Gmail app password
-    help: From myaccount.google.com/apppasswords.
+    help: For Send to me, from myaccount.google.com/apppasswords.
     kind: secret
     goes-with: [GMAIL_ADDRESS]
-  - key: SCHEDULE
-    label: Draft it on
-    help: "When the draft is written: weekdays, *-*-* and a time, like Mon *-*-* 08:00:00."
-    kind: calendar
-    default: Mon *-*-* 08:00:00
+    optional: true
 
 commands:
   draft:
     label: Draft this week's status
-    args: [--save, --notify]
+    args: [--save]
   dry-run:
     label: Draft it now (sends nothing)
     args: [--save]
 
-schedule:
-  command: draft
-  setting: SCHEDULE
-
 dry-run: dry-run
 
-# Its tab on the desk (and its dashboard card), drawn by ui/status.js in the desk's sandboxed frame. It reads only the
-# drafts it saved, and asks the desk for these actions; the desk asks you before a send.
+# Its tab (and dashboard card), drawn by ui/status.js in the desk's sandboxed frame. It reads only the drafts it saved,
+# and asks the desk for these actions; the desk asks you before Send to me.
+tab:
+  page: ui/status.js
+  card: true
+refresh:
+  command: draft
+  schedule: "Mon *-*-* 08:00"
 data: [runs]
-tabs:
-  - name: status
-    label: Status
-    page: ui/status.js
-    card: true
 
 actions:
   send:
-    label: Send it
-    confirm: "Send the weekly status to {target}?"
+    label: Send it to me
+    confirm: "Email the weekly status to yourself?"
     args: [--action=send]
     params:
       draft: {pattern: "\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}"}
       body: {max: 100000}
-      target: {one-of: [me, team]}
+      target: {one-of: [me]}
   sent-yourself:
     label: Mark it sent to the team yourself
     args: [--action=sent-yourself]

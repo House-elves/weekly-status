@@ -18,7 +18,7 @@ Fetches your GitHub activity (PRs and issues), uses Claude to write a polished s
 
 ## Install
 
-The easy way: install it from [Elf Desk](https://github.com/House-elves/elf-desk)'s **Elves** page. The desk reads [`elf.yaml`](elf.yaml), asks for the settings, runs the Monday draft on schedule and gives you a dry run. The steps below set it up by hand, without the desk.
+The easy way: install it from [Elf Desk](https://github.com/House-elves/elf-desk)'s **Elves** page. Its **Weekly status** tab asks for your name, then drafts the status for the first time; after that it drafts on Mondays at 08:00 (change it in its settings) and when you click **Draft it now**. The steps below set it up by hand, without the desk.
 
 ### Quick install (via JBang)
 
@@ -56,8 +56,8 @@ weekly-status --preview
 # Send the email
 weekly-status
 
-# Save a draft for Elf Desk (the timer runs this), with a desktop notification
-weekly-status --save --notify
+# Save a draft for Elf Desk (its schedule and Draft it now run this)
+weekly-status --save
 
 # Send a saved draft (Elf Desk's Send button); the body comes from stdin, or the saved one if stdin is empty
 weekly-status --send=2026-10-19_08-00-00 < body.txt
@@ -65,11 +65,13 @@ weekly-status --send=2026-10-19_08-00-00 < body.txt
 
 Drafts live in `~/.config/weekly-status/runs/<id>.json` (id, week, subject, to, body, and each send in `sends`).
 
-On [Elf Desk](https://github.com/House-elves/elf-desk) this elf brings the **Status** tab and its dashboard card,
-drawn by [`ui/status.js`](ui/status.js) in the desk's sandboxed frame. It shows the newest draft, lets you edit it,
-and **Send** runs `weekly-status --action=send` with the draft, your text and who it goes to on stdin, only after you
-confirm in the desk's own bar. **I sent it myself** (`--action=sent-yourself`) marks the week sent to the team and
-sends nothing.
+On [Elf Desk](https://github.com/House-elves/elf-desk) this elf brings the **Weekly status** tab and its dashboard
+card, drawn by [`ui/status.js`](ui/status.js) in the desk's sandboxed frame. It shows the newest draft and lets you
+edit it. A work Google account usually won't let an app send for it, so the team's copy isn't sent by the elf:
+**Write it to the team in Gmail** opens a Gmail draft in your work account (`TEAM_FROM`) to `TEAM_TO`, with the
+subject and your text filled in, and you send it there. **I sent it myself** (`--action=sent-yourself`) then marks the
+week sent to the team. **Send to me** runs `weekly-status --action=send` with the draft and your text on stdin, only
+after you confirm in the desk's own bar, and emails it to `SEND_TO` from `GMAIL_ADDRESS`.
 
 ## Configuration
 
@@ -83,9 +85,10 @@ Stored in `~/.config/weekly-status/config`:
 | `GMAIL_ADDRESS` | Gmail sender address | — |
 | `GMAIL_APP_PASSWORD` | Gmail App Password | — |
 | `SEND_TO` | Email recipients (comma-separated) | — |
-| `TEAM_TO` | The team list for Elf Desk's "Send to team" (`--send=ID --to=team`) | — |
+| `TEAM_TO` | The team, for the desk's Gmail draft (and `--send=ID --to=team` by hand) | — |
+| `TEAM_FROM` | Your work Gmail account the team's draft opens in | — |
 | `LOOKBACK_DAYS` | Days of activity to include | `7` |
-| `SCHEDULE` | systemd OnCalendar expression | `Fri *-*-* 16:00:00` |
+| `SCHEDULE` | systemd OnCalendar expression, for `install.sh`'s timer (on the desk, the schedule is in its settings) | `Fri *-*-* 16:00:00` |
 
 ## How it works
 

@@ -35,8 +35,6 @@ public class WeeklyStatus implements Callable<Integer> {
             + "(for Elf Desk, which shows it and sends it when you click Send). Sends nothing.")
     boolean save;
 
-    @Option(names = "--notify", description = "With --save: a desktop notification that the draft is ready")
-    boolean notify;
 
     @Option(names = "--send", paramLabel = "ID", description = "Send the saved draft ID; the body is read from stdin "
             + "(your edits), or the saved one if stdin is empty. Records when it was sent.")
@@ -110,7 +108,6 @@ public class WeeklyStatus implements Callable<Integer> {
                 return 1;
             }
             System.out.println("Saved draft " + id);
-            if (notify) notifyReady(weekStart, weekEnd);
         } else if (preview) {
             System.out.println("\n" + "=".repeat(60));
             System.out.println(body);
@@ -130,18 +127,6 @@ public class WeeklyStatus implements Callable<Integer> {
 
         System.out.println("Done!");
         return 0;
-    }
-
-    /** A desktop notification: best effort, a missing notify-send or no session just skips it. */
-    private static void notifyReady(String weekStart, String weekEnd) {
-        try {
-            new ProcessBuilder("notify-send", "--app-name=Elf Desk", "--icon=mail-message-new",
-                    "Weekly status ready to send", "Status for " + weekStart + " to " + weekEnd
-                            + ". Read it and send it from Elf Desk's Status tab.")
-                    .inheritIO().start().waitFor(10, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            System.err.println("No desktop notification: " + e.getMessage());
-        }
     }
 
     /** --action: what the Status tab asks for, its values as JSON on stdin (the runner checked them against elf.yaml). */

@@ -54,6 +54,9 @@ class WeeklyStatus extends LitElement {
         _picked: { state: true },
         _body: { state: true },
         _schedule: { state: true },
+        _values: { state: true },     // its settings, secrets left out: who the team is, and the work account
+        _composed: { state: true },
+        _pasteIt: { state: true },
         _loading: { state: true },
         _sending: { state: true },
         _copied: { state: true },
@@ -90,7 +93,14 @@ class WeeklyStatus extends LitElement {
     connectedCallback() {
         super.connectedCallback();
         this._load();
-        elf.values().then(v => { this._schedule = v.SCHEDULE; }).catch(() => {});
+        elf.state().then(st => { this._schedule = st.refresh?.calendar; }).catch(() => {});
+        elf.values().then(v => { this._values = v; }).catch(() => {});
+        this._offChange = elf.onChange(() => elf.values().then(v => { this._values = v; }).catch(() => {}));
+    }
+
+    disconnectedCallback() {
+        this._offChange?.();
+        super.disconnectedCallback();
     }
 
     async _load() {
@@ -171,13 +181,36 @@ class WeeklyStatus extends LitElement {
         }
     }
 
+    /**
+     * The team's copy goes from your work account, which won't let an app send for it: a Gmail draft there, with the
+     * team, the subject and the status filled in, for you to send. Then "I sent it myself" marks the week done.
+     */
+    _gmailDraft(d) {
+        const v = this._values ?? {};
+        const to = v.TEAM_TO || d.teamTo;
+        if (!to) return null;
+        const q = new URLSearchParams({ view: 'cm', fs: '1', to, su: d.subject, body: this._body ?? '' });
+        if (v.TEAM_FROM) q.set('authuser', v.TEAM_FROM);
+        // Gmail turns away a very long link: then the draft opens without the text, and the click copies it to paste.
+        if (q.toString().length > 7000) q.delete('body');
+        return `https://mail.google.com/mail/?${q}`;
+    }
+
+    /** The Gmail draft opens; when its link couldn't carry the text, the text goes on the clipboard to paste. */
+    _compose(link) {
+        this._composed = true;
+        this._pasteIt = !link.includes('&body=');
+        if (this._pasteIt) copyText(this._body).catch(e => { this._error = `Couldn't copy: ${e.message}`; });
+    }
+
     _panel(d) {
         const open = this._open(d);
         const edited = open && this._body !== d.body;
-        const address = target => target === 'team' ? d.teamTo : d.to;
-        const sendButton = (target, label, cls) => this._sent(target) || (target === 'team' && !d.teamTo) ? ''
-            : html`<button class=${cls} ?disabled=${!this._body?.trim() || !!this._sending} @click=${() => this._send(target)}>
-                ${this._sending === target ? spinner : ''}${label} (${address(target)})</button>`;
+        const mine = d.to || this._values?.SEND_TO;
+        const toMe = this._sent('me') || !mine ? ''
+            : html`<button ?disabled=${!this._body?.trim() || !!this._sending} @click=${() => this._send('me')}>
+                ${this._sending === 'me' ? spinner : ''}Send to me (${mine})</button>`;
+        const draft = this._sent('team') ? null : this._gmailDraft(d);
         return html`
             <section class="panel draft" aria-label="The status">
                 <div class="head">
@@ -192,17 +225,23 @@ class WeeklyStatus extends LitElement {
                         ?disabled=${!!this._sending}></textarea>`
                     : html`<pre class="sent">${d.sentBody ?? d.body}</pre>`}
                 <div class="acts">
-                    ${sendButton('team', 'Send to team', 'primary')}
-                    ${sendButton('me', 'Send to me', '')}
+                    ${draft && this._body?.trim() ? html`<a class="btn primary" href=${draft} @click=${() => this._compose(draft)}>
+                        Write it to the team in Gmail</a>` : ''}
+                    ${toMe}
                     <button @click=${this._copy}>${this._copied ? 'Copied' : 'Copy'}</button>
-                    ${d.teamTo && !this._sent('team') ? html`<button class="quiet" ?disabled=${!!this._sending}
-                        title="You emailed the team yourself: mark this week done. Sends nothing."
+                    ${(this._values?.TEAM_TO || d.teamTo) && !this._sent('team') ? html`<button class=${this._composed ? 'primary' : 'quiet'}
+                        ?disabled=${!!this._sending} title="You sent it to the team yourself: mark this week done. Sends nothing."
                         @click=${() => this._yourself(true)}>${this._sending === 'yourself' ? spinner : ''}I sent it myself</button>` : ''}
                     ${edited ? html`<button class="quiet" @click=${this._discard}>Discard my edits</button>` : ''}
                 </div>
-                ${open ? html`<p class="note">${edited ? 'Your edits are kept in this browser until you send. ' : ''}Sending
-                    emails it from ${d.from || 'the elf\'s Gmail'} with this subject.
-                    Send to me first if you want to check it; nothing goes out until you confirm.</p>` : ''}
+                ${open ? html`<p class="note">${edited ? 'Your edits are kept in this browser until you send. ' : ''}${draft
+                    ? html`Write it to the team opens a draft in Gmail${this._values?.TEAM_FROM ? html` (${this._values.TEAM_FROM})` : ''}
+                        with the team, the subject and this text filled in: check it, send it there, then click I sent it myself. `
+                    : html`Set who the team is in Settings to send it to them. `}${mine
+                    ? html`Send to me emails it to you from ${d.from || 'the elf\'s Gmail'}, once you confirm.` : ''}</p>` : ''}
+                ${this._composed && !this._sent('team') ? html`<p class="note" role="status">${this._pasteIt
+                    ? 'It was too long for the link, so it\'s on your clipboard: paste it into the draft. ' : ''}Sent it from
+                    Gmail? Click I sent it myself, so this week counts as done.</p>` : ''}
             </section>`;
     }
 
@@ -228,9 +267,9 @@ class WeeklyStatus extends LitElement {
                             : this._loading ? '' : 'No status drafted yet.'}
                     </p>
                 </div>${settingsButton(null, 'Weekly status settings')}</div>
-                <elf-run-bar command="dry-run" label="Draft it now" .runs=${this._runs()} .picked=${this._picked}
+                <elf-run-bar command="draft" label="Draft it now" .runs=${this._runs()} .picked=${this._picked}
                     note="Gathers your GitHub work of the last days and drafts the status with Claude. Sends nothing.${this._schedule
-                        ? ` It also drafts itself ${calendarText(this._schedule)} and pops up a desktop reminder.` : ''}"
+                        ? ` It also drafts itself ${calendarText(this._schedule)}.` : ''}"
                     @run-picked=${e => { this._picked = e.detail; this._load(); }}
                     @run-finished=${() => { this._picked = null; this._load(); }}></elf-run-bar>
                 ${this._error ? html`<p class="error" role="alert">${this._error}</p>` : ''}
@@ -256,7 +295,7 @@ class WeeklyStatusCard extends LitElement {
         super.connectedCallback();
         this._load();
         this._off = elf.onChange(() => this._load());
-        elf.values().then(v => { this._schedule = v.SCHEDULE; }).catch(() => {});
+        elf.state().then(st => { this._schedule = st.refresh?.calendar; }).catch(() => {});
     }
 
     disconnectedCallback() {
@@ -281,9 +320,9 @@ class WeeklyStatusCard extends LitElement {
         const d = this._draft;
         const state = statusState(d, d?.at);
         const say = state === 'sent' ? `This week's status went to the team ${ago(sends(d).find(x => x.target === 'team').at)}.`
-            : state === 'self' ? html`<a href="#status">This week's status</a> went to you, not to the team yet.`
-            : state === 'draft' ? html`<a href="#status">This week's status</a> is drafted and ready to send.`
-            : html`Nothing drafted this week yet. <a href="#status">Draft it now</a>${this._schedule
+            : state === 'self' ? html`<a href="#">This week's status</a> went to you, not to the team yet.`
+            : state === 'draft' ? html`<a href="#">This week's status</a> is drafted and ready to send.`
+            : html`Nothing drafted this week yet. <a href="#">Draft it now</a>${this._schedule
                 ? `, or it drafts itself ${calendarText(this._schedule)}` : ''}.`;
         const running = this._state?.running?.['dry-run'] ?? this._state?.running?.draft;
         return html`<p class="say">${say}</p>
