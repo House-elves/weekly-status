@@ -68,3 +68,29 @@ schedule:
   setting: SCHEDULE
 
 dry-run: dry-run
+
+# Its tab on the desk (and its dashboard card), drawn by ui/status.js in the desk's sandboxed frame. It reads only the
+# drafts it saved, and asks the desk for these actions; the desk asks you before a send.
+data: [runs]
+tabs:
+  - name: status
+    label: Status
+    page: ui/status.js
+    card: true
+
+actions:
+  send:
+    label: Send it
+    confirm: "Send the weekly status to {target}?"
+    args: [--action=send]
+    params:
+      draft: {pattern: "\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}"}
+      body: {max: 100000}
+      target: {one-of: [me, team]}
+  sent-yourself:
+    label: Mark it sent to the team yourself
+    args: [--action=sent-yourself]
+    ask: false
+    params:
+      draft: {pattern: "\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}"}
+      sent: {kind: bool}

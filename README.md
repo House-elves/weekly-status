@@ -63,8 +63,13 @@ weekly-status --save --notify
 weekly-status --send=2026-10-19_08-00-00 < body.txt
 ```
 
-Drafts live in `~/.config/weekly-status/runs/<id>.json` (id, week, subject, to, body, and once sent: `sentAt`,
-`sentTo`, `sentBody`). Elf Desk's Status tab shows the newest, lets you edit it, and sends it when you click Send.
+Drafts live in `~/.config/weekly-status/runs/<id>.json` (id, week, subject, to, body, and each send in `sends`).
+
+On [Elf Desk](https://github.com/House-elves/elf-desk) this elf brings the **Status** tab and its dashboard card,
+drawn by [`ui/status.js`](ui/status.js) in the desk's sandboxed frame. It shows the newest draft, lets you edit it,
+and **Send** runs `weekly-status --action=send` with the draft, your text and who it goes to on stdin, only after you
+confirm in the desk's own bar. **I sent it myself** (`--action=sent-yourself`) marks the week sent to the team and
+sends nothing.
 
 ## Configuration
 

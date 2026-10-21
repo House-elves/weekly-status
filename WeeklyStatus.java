@@ -45,6 +45,10 @@ public class WeeklyStatus implements Callable<Integer> {
     @Option(names = "--to", defaultValue = "me", description = "With --send: me (SEND_TO) or team (TEAM_TO). Each once per draft.")
     String sendTarget;
 
+    @Option(names = "--action", paramLabel = "NAME", description = "For Elf Desk's Status tab: send (stdin: {draft, body, "
+            + "target}) or sent-yourself (stdin: {draft, sent}). Prints one JSON line.")
+    String action;
+
     static final Path RUNS = Config.CONFIG_DIR.resolve("runs");
     static final java.util.regex.Pattern RUN_ID = java.util.regex.Pattern.compile("\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}");
     static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
@@ -56,7 +60,15 @@ public class WeeklyStatus implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        if (sendId != null) return sendSaved();
+        if (action != null) return action();
+        if (sendId != null) {
+            try {
+                return sendSaved(sendId, sendTarget, new String(System.in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                System.err.println("Not sent: " + e.getMessage());
+                return 1;
+            }
+        }
         if (!waitForNetwork()) {
             System.err.println("No network connectivity after retrying. Aborting.");
             return 1;
@@ -132,8 +144,75 @@ public class WeeklyStatus implements Callable<Integer> {
         }
     }
 
-    /** --send: the saved draft, with the body from stdin if given, sent and marked sent. */
-    private int sendSaved() {
+    /** --action: what the Status tab asks for, its values as JSON on stdin (the runner checked them against elf.yaml). */
+    private int action() {
+        try {
+            var in = JSON.readTree(System.in);
+            String draft = in.path("draft").asText("");
+            return switch (action) {
+                case "send" -> sendSaved(draft, in.path("target").asText(""), in.path("body").asText(""));
+                case "sent-yourself" -> sentYourself(draft, in.path("sent").asBoolean(true));
+                default -> {
+                    System.err.println("Not an action: " + action);
+                    yield 2;
+                }
+            };
+        } catch (IOException e) {
+            System.err.println("Can't read what to do: " + e.getMessage());
+            return 2;
+        }
+    }
+
+    /**
+     * "I sent it myself": you emailed the team yourself, so the draft counts as sent to the team, and nothing is
+     * sent. With sent false, takes back such a mark (never a send this elf made).
+     */
+    private int sentYourself(String id, boolean sent) {
+        if (!RUN_ID.matcher(id).matches()) {
+            System.err.println("Not a draft id: " + id);
+            return 2;
+        }
+        Path file = RUNS.resolve(id + ".json");
+        try {
+            var draft = (com.fasterxml.jackson.databind.node.ObjectNode) JSON.readTree(file.toFile());
+            var sends = draft.withArray("sends");
+            boolean toTeam = false, marked = false;
+            for (var s : sends) {
+                if (s.path("target").asText().equals("team")) {
+                    toTeam = true;
+                    marked |= s.path("yourself").asBoolean();
+                }
+            }
+            if (sent) {
+                if (toTeam) {
+                    System.err.println("It's already marked sent to the team");
+                    return 1;
+                }
+                sends.addObject().put("target", "team").put("to", draft.path("teamTo").asText("")).put("at", java.time.Instant.now().toString())
+                        .put("yourself", true);
+            } else {
+                if (toTeam && !marked) {
+                    System.err.println("This elf sent it to the team; that can't be undone");
+                    return 1;
+                }
+                for (int i = sends.size() - 1; i >= 0; i--) {
+                    if (sends.get(i).path("yourself").asBoolean()) sends.remove(i);
+                }
+            }
+            Files.writeString(file, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(draft));
+            System.out.println("{\"sentYourself\": " + sent + "}");
+            return 0;
+        } catch (java.nio.file.NoSuchFileException e) {
+            System.err.println("No such draft: " + id);
+            return 1;
+        } catch (Exception e) {
+            System.err.println("Not marked: " + e.getMessage());
+            return 1;
+        }
+    }
+
+    /** --send: the saved draft, with the body given (your edits) or the saved one when it's empty, sent and marked sent. */
+    private int sendSaved(String sendId, String sendTarget, String edited) {
         if (!RUN_ID.matcher(sendId).matches()) {
             System.err.println("Not a draft id: " + sendId);
             return 2;
@@ -164,7 +243,7 @@ public class WeeklyStatus implements Callable<Integer> {
                 System.err.println("TEAM_TO isn't set in " + Config.CONFIG_PATH);
                 return 1;
             }
-            String edited = new String(System.in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
+            edited = edited == null ? "" : edited.strip();
             String body = edited.isEmpty() ? draft.path("body").asText() : edited;
             new Notifier(config).sendTo(to, draft.path("subject").asText(), body);
             String at = java.time.Instant.now().toString();
