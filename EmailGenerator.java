@@ -44,7 +44,10 @@ public class EmailGenerator {
                 """.formatted(displayName, weekStart, weekEnd, activityJson);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder("claude", "-p", "--model", "sonnet");
+            // Locked down: what it reads includes other people's words (titles, comments), so Claude gets no tools
+            // (built in or MCP), none of your settings, and an empty folder of its own.
+            ProcessBuilder pb = new ProcessBuilder("claude", "-p", "--model", "sonnet", "--tools", "", "--strict-mcp-config",
+                    "--setting-sources", "").directory(java.nio.file.Files.createTempDirectory("elf-claude-").toFile());
             pb.redirectErrorStream(false);
             Process process = pb.start();
 
