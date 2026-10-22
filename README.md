@@ -18,7 +18,7 @@ Fetches your GitHub activity (PRs and issues), uses Claude to write a polished s
 
 ## Install
 
-The easy way: install it from [Elf Desk](https://github.com/House-elves/elf-desk)'s **Elves** page. Its **Weekly status** tab asks for your name, then drafts the status for the first time; after that it drafts on Mondays at 08:00 (change it in its settings) and when you click **Draft it now**. The steps below set it up by hand, without the desk.
+The easy way: add it in [Elf Desk](https://github.com/House-elves/elf-desk) with the **+** after the last tab. Its **Weekly status** tab asks for your name, then drafts the status for the first time; after that it drafts on Mondays at 08:00 (change it in its settings) and when you click **Draft it now**. The steps below set it up by hand, without the desk.
 
 ### Quick install (via JBang)
 
