@@ -1,7 +1,7 @@
 # A House Elves elf: what Elf Desk needs to install, set up, schedule and run weekly-status.
 name: weekly-status
 title: Weekly status
-version: 1.0.0
+version: 1.0.1
 author: "@phillip-kruger"
 description: Drafts your weekly status from your GitHub work, for you to edit and send from the desk's Status tab.
 main: WeeklyStatus.java
