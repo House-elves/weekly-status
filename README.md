@@ -8,6 +8,8 @@ Fetches your GitHub activity (PRs and issues), uses Claude to write a polished s
 
 - **What I have done** — PRs merged and issues closed in the period, grouped by repository
 
+**Coding agent**: it asks Claude Code by default. Under **Coding agent** in its settings you can choose Codex or [pi](https://pi.dev/) instead, or leave it to the runner's choice (runner 0.43.0 or later). Whichever it is, it gets no tools, none of your settings and an empty folder, so it can only answer with text.
+
 ## Prerequisites
 
 - **Java 17+** (via SDKMAN or system package manager)

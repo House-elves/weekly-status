@@ -25,7 +25,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-@Command(name = "weekly-status", mixinStandardHelpOptions = true, version = "1.0.0",
+@Command(name = "weekly-status", mixinStandardHelpOptions = true, version = "1.1.0",
         description = "Weekly GitHub status email generator using Claude Code")
 public class WeeklyStatus implements Callable<Integer> {
 

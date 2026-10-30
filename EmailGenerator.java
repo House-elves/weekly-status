@@ -46,8 +46,12 @@ public class EmailGenerator {
         try {
             // Locked down: what it reads includes other people's words (titles, comments), so Claude gets no tools
             // (built in or MCP), none of your settings, and an empty folder of its own.
-            ProcessBuilder pb = new ProcessBuilder("claude", "-p", "--model", "sonnet", "--tools", "", "--strict-mcp-config",
-                    "--setting-sources", "").directory(java.nio.file.Files.createTempDirectory("elf-claude-").toFile());
+            // Run by the House Elves runner: the coding agent its settings chose, locked down the same way (ELF_ASK).
+            String ask = System.getenv("ELF_ASK");
+            boolean viaAsk = ask != null && !ask.isBlank();
+            ProcessBuilder pb = new ProcessBuilder(viaAsk ? java.util.List.of(ask, "--minutes", "2")
+                    : java.util.List.of("claude", "-p", "--model", "sonnet", "--tools", "", "--strict-mcp-config", "--setting-sources", ""))
+                    .directory(java.nio.file.Files.createTempDirectory("elf-claude-").toFile());
             pb.redirectErrorStream(false);
             Process process = pb.start();
 
@@ -59,16 +63,18 @@ public class EmailGenerator {
             boolean finished = process.waitFor(2, TimeUnit.MINUTES);
             if (!finished) {
                 process.destroyForcibly();
-                System.err.println("Claude timed out");
+                System.err.println("The coding agent timed out");
                 return null;
             }
 
             String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
             if (process.exitValue() != 0) {
                 String stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-                System.err.println("Claude failed: " + stderr);
+                System.err.println("The coding agent failed: " + stderr);
                 return null;
             }
+            // ELF_ASK answers as claude -p --output-format json does: the text is its result.
+            if (viaAsk) stdout = new com.fasterxml.jackson.databind.ObjectMapper().readTree(stdout).path("result").asText("").trim();
 
             // Strip markdown fences if present
             if (stdout.startsWith("```")) stdout = stdout.substring(stdout.indexOf('\n') + 1);
@@ -80,7 +86,7 @@ public class EmailGenerator {
 
             return stdout.strip();
         } catch (IOException | InterruptedException e) {
-            System.err.println("Claude error: " + e.getMessage());
+            System.err.println("Coding agent error: " + e.getMessage());
             return null;
         }
     }

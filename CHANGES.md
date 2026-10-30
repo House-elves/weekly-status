@@ -3,6 +3,10 @@
 What changed for you in each version of Weekly status, newest first. The desk shows the parts that are new when it offers you an
 update.
 
+## 1.1.0
+
+- The status email is written by the coding agent you choose: Claude Code, Codex or pi, under **Coding agent** in its settings (the runner's choice unless you pick one). It needs runner 0.43.0; with an older runner it asks Claude Code as before.
+
 ## 1.0.2
 
 - Safer: Claude writes the draft with no tools, none of your settings, and an empty folder.
