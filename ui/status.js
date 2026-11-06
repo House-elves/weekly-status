@@ -222,7 +222,7 @@ class WeeklyStatus extends LitElement {
                         : html`<span class="to">Not sent yet</span>`}
                 </div>
                 ${open ? html`<textarea aria-label="Status text" .value=${this._body ?? ''} @input=${this._edit}
-                        ?disabled=${!!this._sending}></textarea>`
+                        ?disabled=${!!this._sending}></textarea><elf-mic></elf-mic>`
                     : html`<pre class="sent">${d.sentBody ?? d.body}</pre>`}
                 <div class="acts">
                     ${draft && this._body?.trim() ? html`<a class="btn primary" href=${draft} @click=${() => this._compose(draft)}>
