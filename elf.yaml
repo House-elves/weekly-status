@@ -1,7 +1,7 @@
 # A House Elves elf: what Elf Desk needs to install, set up, schedule and run weekly-status.
 name: weekly-status
 title: Weekly status
-version: 1.2.0
+version: 1.3.0
 author: "@phillip-kruger"
 description: Drafts your weekly status from your GitHub work, for you to edit and send from the desk's Status tab.
 main: WeeklyStatus.java
@@ -12,7 +12,9 @@ ai: [ask]
 
 reads:
   - Your GitHub activity (PRs, reviews, issues), through gh.
+  - Your sessions in the Sessions elf (~/.config/sessions/sessions) with the tag you choose (Work), those you worked in that week: their goal, what you asked and what was done, and what was pushed. It only reads them.
 writes:
+  - Whether this week's status still needs sending, in ~/.config/weekly-status/runs/attention.json, for the desk's dot on its tab: on from the Monday draft until it has gone to the team.
   - An email with your status to you, only when you click Send to me and confirm.
   - Nothing to your team: Write it to the team opens a Gmail draft in your work account, which you send yourself.
 
@@ -38,6 +40,12 @@ settings:
     min: 1
     max: 31
     default: "7"
+  - key: SESSIONS_TAG
+    label: Sessions with this tag
+    help: Work from the Sessions elf's sessions with this tag goes in the status too. Empty to leave sessions out.
+    kind: text
+    default: Work
+    optional: true
   - key: TEAM_TO
     label: The team
     help: Who the status goes to (comma-separated). Write it to the team opens a Gmail draft to them.

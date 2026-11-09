@@ -20,6 +20,8 @@ public class Config {
     /** "Send to team" on the desk: the team's list (TEAM_TO), empty when not configured. */
     String teamTo;
     int lookbackDays;
+    /** The Sessions elf's tag whose sessions go in the status (empty: none). */
+    String sessionsTag;
 
     static Config load() {
         if (!Files.exists(CONFIG_PATH)) {
@@ -52,6 +54,7 @@ public class Config {
         c.sendTo = raw.getOrDefault("SEND_TO", "");
         c.teamTo = raw.getOrDefault("TEAM_TO", "");
         c.lookbackDays = Integer.parseInt(raw.getOrDefault("LOOKBACK_DAYS", "7"));
+        c.sessionsTag = raw.getOrDefault("SESSIONS_TAG", "Work");
         return c;
     }
 

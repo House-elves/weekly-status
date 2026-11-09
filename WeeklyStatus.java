@@ -7,6 +7,7 @@
 //SOURCES GitHubActivity.java
 //SOURCES EmailGenerator.java
 //SOURCES Notifier.java
+//SOURCES SessionsWork.java
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -25,7 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-@Command(name = "weekly-status", mixinStandardHelpOptions = true, version = "1.2.0",
+@Command(name = "weekly-status", mixinStandardHelpOptions = true, version = "1.3.0",
         description = "Weekly GitHub status email generator using Claude Code")
 public class WeeklyStatus implements Callable<Integer> {
 
@@ -85,9 +86,12 @@ public class WeeklyStatus implements Callable<Integer> {
         GitHubActivity gh = new GitHubActivity(config);
         GitHubActivity.Activity activity = gh.fetch();
 
+        String sessions = SessionsWork.since(weekAgo.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant(),
+                config.sessionsTag, config.excludeOrgs);
+
         System.out.println("Generating email with Claude...");
         EmailGenerator generator = new EmailGenerator();
-        String body = generator.generate(activity.toJson(), config.displayName, weekStart, weekEnd);
+        String body = generator.generate(activity.toJson(), sessions, config.displayName, weekStart, weekEnd);
 
         if (body == null) {
             System.err.println("Failed to generate email");
@@ -109,6 +113,7 @@ public class WeeklyStatus implements Callable<Integer> {
                 return 1;
             }
             System.out.println("Saved draft " + id);
+            attention();
         } else if (preview) {
             System.out.println("\n" + "=".repeat(60));
             System.out.println(body);
@@ -150,6 +155,32 @@ public class WeeklyStatus implements Callable<Integer> {
     }
 
     /**
+     * runs/attention.json, which the desk reads to put a dot on the Status tab: on while the newest draft hasn't gone
+     * to the team (from Monday's draft until you send it), off once it has.
+     */
+    static void attention() {
+        try (var s = Files.list(RUNS)) {
+            var newest = s.map(p -> p.getFileName().toString()).filter(n -> RUN_ID.matcher(n.replace(".json", "")).matches() && n.endsWith(".json"))
+                    .max(String::compareTo).orElse(null);
+            boolean on = false;
+            if (newest != null) {
+                on = true;
+                for (var x : JSON.readTree(RUNS.resolve(newest).toFile()).path("sends")) {
+                    if (x.path("target").asText().equals("team")) on = false;
+                }
+            }
+            var a = JSON.createObjectNode().put("attention", on);
+            if (on) a.put("why", "This week's status is ready to send");
+            Path tmp = RUNS.resolve("attention.json.new");
+            Files.writeString(tmp, a.toString());
+            Files.move(tmp, RUNS.resolve("attention.json"), java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (Exception e) {
+            System.err.println("Couldn't note whether the status needs you: " + e.getMessage());
+        }
+    }
+
+    /**
      * "I sent it myself": you emailed the team yourself, so the draft counts as sent to the team, and nothing is
      * sent. With sent false, takes back such a mark (never a send this elf made).
      */
@@ -186,6 +217,7 @@ public class WeeklyStatus implements Callable<Integer> {
                 }
             }
             Files.writeString(file, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(draft));
+            attention();
             System.out.println("{\"sentYourself\": " + sent + "}");
             return 0;
         } catch (java.nio.file.NoSuchFileException e) {
@@ -236,6 +268,7 @@ public class WeeklyStatus implements Callable<Integer> {
             sends.addObject().put("target", sendTarget).put("to", to).put("at", at).put("body", body);
             draft.put("sentAt", at).put("sentTo", to).put("sentBody", body); // the latest send
             Files.writeString(file, JSON.writerWithDefaultPrettyPrinter().writeValueAsString(draft));
+            attention();
             System.out.println("{\"sentTo\": " + JSON.writeValueAsString(to) + "}");
             return 0;
         } catch (java.nio.file.NoSuchFileException e) {
