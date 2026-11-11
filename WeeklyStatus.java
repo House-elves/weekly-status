@@ -155,22 +155,26 @@ public class WeeklyStatus implements Callable<Integer> {
     }
 
     /**
-     * runs/attention.json, which the desk reads to put a dot on the Status tab: on while the newest draft hasn't gone
-     * to the team (from Monday's draft until you send it), off once it has.
+     * runs/attention.json, which the desk reads to put a dot on the Status tab: on a Monday only, while the newest
+     * draft hasn't gone to the team. Its until is the end of that Monday, when the desk takes the dot off by itself.
      */
     static void attention() {
         try (var s = Files.list(RUNS)) {
             var newest = s.map(p -> p.getFileName().toString()).filter(n -> RUN_ID.matcher(n.replace(".json", "")).matches() && n.endsWith(".json"))
                     .max(String::compareTo).orElse(null);
+            var today = java.time.LocalDate.now();
             boolean on = false;
-            if (newest != null) {
+            if (newest != null && today.getDayOfWeek() == java.time.DayOfWeek.MONDAY) {
                 on = true;
                 for (var x : JSON.readTree(RUNS.resolve(newest).toFile()).path("sends")) {
                     if (x.path("target").asText().equals("team")) on = false;
                 }
             }
             var a = JSON.createObjectNode().put("attention", on);
-            if (on) a.put("why", "This week's status is ready to send");
+            if (on) {
+                a.put("why", "This week's status is ready to send");
+                a.put("until", today.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toString());
+            }
             Path tmp = RUNS.resolve("attention.json.new");
             Files.writeString(tmp, a.toString());
             Files.move(tmp, RUNS.resolve("attention.json"), java.nio.file.StandardCopyOption.REPLACE_EXISTING,

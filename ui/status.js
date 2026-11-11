@@ -280,7 +280,7 @@ class WeeklyStatus extends LitElement {
     }
 }
 
-/** The dashboard card: from Monday on, it asks for your attention until this week's is sent. */
+/** The dashboard card: on a Monday, it asks for your attention until this week's is sent. */
 class WeeklyStatusCard extends LitElement {
 
     static properties = { _draft: { state: true }, _state: { state: true }, _schedule: { state: true }, _loaded: { state: true } };
@@ -312,7 +312,7 @@ class WeeklyStatusCard extends LitElement {
             this._draft = null;
         }
         this._loaded = true;
-        elf.card({ attention: statusState(this._draft, this._draft?.at) !== 'sent' });
+        elf.card({ attention: new Date().getDay() === 1 && statusState(this._draft, this._draft?.at) !== 'sent' });
     }
 
     render() {

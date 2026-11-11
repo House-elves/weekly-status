@@ -3,6 +3,12 @@
 What changed for you in each version of Weekly status, newest first. The desk shows the parts that are new when it offers you an
 update.
 
+## 1.3.1
+
+- The dot on the tab (and the dashboard card's mark) shows on Mondays only, while this week's status hasn't gone to the
+  team, and goes off by itself at the end of the Monday. Needs a desk that knows a dot's until; an older desk keeps
+  it until the status is sent.
+
 ## 1.3.0
 
 - The status includes your work from the Sessions elf: each session tagged **Work** (or the tag you choose in its
